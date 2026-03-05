@@ -479,8 +479,6 @@ export async function startGateway() {
   // OpenClaw stores context windows per-model at config.models.providers.<key>.models[].contextWindow
   // When the CLI creates a custom provider with an unknown model, contextWindow defaults to 4096 —
   // below the 16000 minimum for agent operation.
-  console.log('DEBUG models keys:', config.models ? Object.keys(config.models) : 'no models');
-  console.log('DEBUG models.providers:', config.models?.providers ? JSON.stringify(Object.keys(config.models.providers)) : 'no providers');
   const providers = config.models?.providers;
   if (providers && typeof providers === 'object') {
     for (const [key, providerEntry] of Object.entries(providers)) {
@@ -498,10 +496,6 @@ export async function startGateway() {
   }
 
   writeFileSync(configFile, JSON.stringify(config, null, 2));
-  // Verify the write persisted the contextWindow change
-  const verifyConfig = JSON.parse(readFileSync(configFile, 'utf-8'));
-  const verifyCtx = verifyConfig.models?.providers?.['custom-plano-railway-internal-12000']?.models?.[0]?.contextWindow;
-  console.log('DEBUG written contextWindow:', verifyCtx);
 
   // Start the gateway
   // Using: openclaw gateway --port PORT --verbose
