@@ -377,16 +377,24 @@ export async function startGateway() {
   const pwBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH || '/ms-playwright';
   let chromeBinary = null;
 
-  // Method 1: Ask playwright-core where its Chromium binary is
-  try {
-    const pw = await import('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core/index.mjs');
-    const candidate = pw.chromium.executablePath();
-    if (candidate && existsSync(candidate)) {
-      chromeBinary = candidate;
-      console.log(`Browser: playwright-core reports Chromium at ${candidate}`);
+  // Method 1: Ask playwright-core where its Chromium binary is.
+  // Prefer the active npm-managed runtime, but fall back to the Docker-baked copy.
+  const playwrightCandidates = [
+    join(process.env.NPM_CONFIG_PREFIX || '/data/.npm-global', 'lib', 'node_modules', 'openclaw', 'node_modules', 'playwright-core', 'index.mjs'),
+    '/usr/local/lib/node_modules/openclaw/node_modules/playwright-core/index.mjs'
+  ];
+  for (const importPath of playwrightCandidates) {
+    if (chromeBinary || !existsSync(importPath)) continue;
+    try {
+      const pw = await import(importPath);
+      const candidate = pw.chromium.executablePath();
+      if (candidate && existsSync(candidate)) {
+        chromeBinary = candidate;
+        console.log(`Browser: playwright-core reports Chromium at ${candidate}`);
+      }
+    } catch {
+      // Try the next known playwright-core location.
     }
-  } catch {
-    // playwright-core might not be importable — fall through to filesystem scan
   }
 
   // Method 2: Scan the Playwright browsers directory for any chrome/chromium binary

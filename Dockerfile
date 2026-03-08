@@ -85,7 +85,8 @@ if [ -z "$OPENCLAW_BUNDLED_SKILLS_DIR" ]; then\n\
   export OPENCLAW_BUNDLED_SKILLS_DIR="${OPENCLAW_STATE_DIR:-/data/.openclaw}/skills"\n\
 fi\n\
 NPM_ENTRY="${NPM_CONFIG_PREFIX:-/data/.npm-global}/lib/node_modules/openclaw/dist/entry.js"\n\
-if [ -f "$NPM_ENTRY" ]; then\n\
+NPM_PACKAGE_JSON="${NPM_CONFIG_PREFIX:-/data/.npm-global}/lib/node_modules/openclaw/package.json"\n\
+if [ -f "$NPM_ENTRY" ] && [ -f "$NPM_PACKAGE_JSON" ]; then\n\
   exec node "$NPM_ENTRY" "$@"\n\
 fi\n\
 exec node /usr/local/lib/node_modules/openclaw/dist/entry.js "$@"\n' > /opt/openclaw-bin/openclaw && \
