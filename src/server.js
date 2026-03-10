@@ -1287,7 +1287,9 @@ app.get('/lite/api/version', authMiddleware, async (req, res) => {
   // Check current running version
   try {
     const vResult = await runCmd('--version');
-    current = (vResult.stdout || '').trim().replace(/^openclaw\s*/i, '') || null;
+    const versionOutput = (vResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+    // Extract clean version (e.g. "2026.3.8") stripping commit hash like "2026.3.8 (3caab92)"
+    current = versionOutput.split(/\s/)[0] || null;
     steps.push('Current version: ' + (current || 'unknown'));
   } catch {
     steps.push('Could not determine current version');
@@ -1477,7 +1479,8 @@ app.post('/lite/api/upgrade', authMiddleware, async (req, res) => {
 
       // Verify base version is now active
       const verifyResult = await runCmd('--version');
-      const newVersion = (verifyResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+      const versionOut = (verifyResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+      const newVersion = versionOut.split(/\s/)[0] || '';
       steps.push('Active version: ' + (newVersion || 'unknown'));
 
       // Restart gateway
@@ -1534,7 +1537,8 @@ app.post('/lite/api/upgrade', authMiddleware, async (req, res) => {
 
     // Verify new version
     const verifyResult = await runCmd('--version');
-    const newVersion = (verifyResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+    const versionOut = (verifyResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+    const newVersion = versionOut.split(/\s/)[0] || '';
     steps.push('New version: ' + (newVersion || 'unknown'));
 
     // Restart gateway
