@@ -1287,7 +1287,9 @@ app.get('/lite/api/version', authMiddleware, async (req, res) => {
   // Check current running version
   try {
     const vResult = await runCmd('--version');
-    current = (vResult.stdout || '').trim().replace(/^openclaw\s*/i, '') || null;
+    const versionOutput = (vResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+    // Extract clean version (e.g. "2026.3.8") stripping commit hash like "2026.3.8 (3caab92)"
+    current = versionOutput.split(/\s/)[0] || null;
     steps.push('Current version: ' + (current || 'unknown'));
   } catch {
     steps.push('Could not determine current version');
@@ -1477,7 +1479,8 @@ app.post('/lite/api/upgrade', authMiddleware, async (req, res) => {
 
       // Verify base version is now active
       const verifyResult = await runCmd('--version');
-      const newVersion = (verifyResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+      const versionOut = (verifyResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+      const newVersion = versionOut.split(/\s/)[0] || '';
       steps.push('Active version: ' + (newVersion || 'unknown'));
 
       // Restart gateway
@@ -1534,7 +1537,8 @@ app.post('/lite/api/upgrade', authMiddleware, async (req, res) => {
 
     // Verify new version
     const verifyResult = await runCmd('--version');
-    const newVersion = (verifyResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+    const versionOut = (verifyResult.stdout || '').trim().replace(/^openclaw\s*/i, '');
+    const newVersion = versionOut.split(/\s/)[0] || '';
     steps.push('New version: ' + (newVersion || 'unknown'));
 
     // Restart gateway
@@ -1565,11 +1569,15 @@ const { middleware: proxyMiddleware, upgradeHandler } = createProxy(getGatewayTo
 // Protect all /openclaw paths (SPA, assets, API) with setup password
 app.use('/openclaw', authMiddleware);
 
-// Redirect /openclaw to include gateway token so the SPA can authenticate
+// Redirect /openclaw (and subpaths on refresh) to include gateway token so the SPA can authenticate
 const openclawHandler = (req, res, next) => {
-  // If token already in query, let the proxy serve the SPA
-  // (avoids redirect loop since Express 5 strict:false matches /openclaw/ too)
+  // If token already in query, let the proxy serve the request
   if (req.query.token) {
+    return next();
+  }
+  // Only redirect navigation requests (HTML pages), not assets/API/XHR
+  const acceptsHtml = req.headers.accept && req.headers.accept.includes('text/html');
+  if (!acceptsHtml) {
     return next();
   }
   if (!isGatewayRunning()) {
@@ -1579,11 +1587,15 @@ const openclawHandler = (req, res, next) => {
     });
   }
   const token = getGatewayToken();
-  res.redirect(`/openclaw/?token=${encodeURIComponent(token)}`);
+  // Preserve existing query params (e.g. ?session=...) and add token
+  const url = new URL(req.originalUrl, `http://${req.headers.host}`);
+  url.searchParams.set('token', token);
+  res.redirect(url.pathname + url.search);
 };
 
 app.get('/openclaw', openclawHandler);
 app.post('/openclaw', openclawHandler);
+app.get('/openclaw/{*path}', openclawHandler);  // catch subpath refreshes like /openclaw/chat?session=...
 
 // Proxy all other requests to gateway (when running)
 // Note: Using no path argument to avoid Express 5 stripping req.url
